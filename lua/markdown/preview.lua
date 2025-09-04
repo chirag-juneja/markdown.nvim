@@ -20,36 +20,33 @@ end
 function M.render_slide()
 	local lines = M.slides[M.current_slide] or { "No slides found" }
 	vim.api.nvim_buf_set_lines(win.buf, 0, -1, false, lines)
+	vim.api.nvim_buf_set_option(win.buf, "filetype", "markdown")
 end
 
-function M.toggle()
-	if win.win and vim.api.nvim_win_is_valid(win.win) then
-		win.close()
-	else
-		if M.load_current_buffer() then
-			win.create_buffer()
-			win.open()
-			M.render_slide()
-		end
+function M.open()
+	if M.load_current_buffer() then
+		win.create_floating_window()
+		M.render_slide()
+		vim.keymap.set("n", "n", function()
+			M.next_slide()
+		end, { buffer = win.buf })
+		vim.keymap.set("n", "p", function()
+			M.prev_slide()
+		end, { buffer = win.buf })
+		vim.keymap.set("n", "f", function()
+			win.fullscreen()
+		end, { buffer = win.buf })
 	end
 end
 
 function M.next_slide()
-	if M.current_slide < #M.slides then
-		M.current_slide = M.current_slide + 1
-		M.render_slide()
-	else
-		vim.notify("Last slide", vim.log.levels.INFO)
-	end
+	M.current_slide = math.min(M.current_slide + 1, #M.slides)
+	M.render_slide()
 end
 
 function M.prev_slide()
-	if M.current_slide > 1 then
-		M.current_slide = M.current_slide - 1
-		M.render_slide()
-	else
-		vim.notify("First slide", vim.log.levels.INFO)
-	end
+	M.current_slide = math.max(M.current_slide - 1, 1)
+	M.render_slide()
 end
 
 return M
