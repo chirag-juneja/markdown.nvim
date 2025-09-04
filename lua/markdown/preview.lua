@@ -1,51 +1,55 @@
+local parser = require("markdown.parser")
+local win = require("markdown.window")
+
 local M = {}
+M.slides = {}
+M.current_slide = 1
 
-M.buf = nil
-M.win = nil
-
-function M.open()
-    if M.buffer and vim.api.nvim_buf_is_valid(M.buf) then
-        vim.notify("preview already open", vim.log.levels.INFO)
-        return
-    end
-    M.buf = vim.api.nvim_create_buf(false, true)
-
-    vim.api.nvim_buf_set_option(M.buf, "buftype", "nofile")
-    vim.api.nvim_buf_set_option(M.buf, "bufhidden", "wipe")
-    vim.api.nvim_buf_set_option(M.buf, "filetype", "markdown")
-
-    local width = math.floor(vim.o.columns * 0.6)
-    local height = math.floor(vim.o.lines * 0.6)
-    local row = math.floor((vim.o.lines - height) / 2)
-    local col = math.floor((vim.o.columns - width) / 2)
-
-    local opts = {
-        relative = "editor",
-        width = width,
-        height = height,
-        row = row,
-        col = col,
-        style = "minimal",
-        border = "rounded",
-    }
-    M.win = vim.api.nvim_open_win(M.buf, true, opts)
-    vim.api.nvim_buf_set_lines(M.buf, 0, -1, false, { "This is your preview" })
+function M.load_current_buffer()
+	local name = vim.api.nvim_buf_get_name(0)
+	if not name:match("%.md$") then
+		vim.notify("Current buffer is not a markdown file", vim.log.levels.WARN)
+		return false
+	end
+	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+	M.slides = parser.parse(lines)
+	M.current_slide = 1
+	return true
 end
 
-function M.close()
-    if M.win and vim.api.nvim_win_is_valid(M.win) then
-        vim.api.nvim_win_close(M.win, true)
-    end
-    M.buf = nil
-    M.win = nil
+function M.render_slide()
+	local lines = M.slides[M.current_slide] or { "No slides found" }
+	vim.api.nvim_buf_set_lines(win.buf, 0, -1, false, lines)
 end
 
 function M.toggle()
-    if M.win and vim.api.nvim_win_is_valid(M.win) then
-        M.close()
-    else
-        M.open()
-    end
+	if win.win and vim.api.nvim_win_is_valid(win.win) then
+		win.close()
+	else
+		if M.load_current_buffer() then
+			win.create_buffer()
+			win.open()
+			M.render_slide()
+		end
+	end
+end
+
+function M.next_slide()
+	if M.current_slide < #M.slides then
+		M.current_slide = M.current_slide + 1
+		M.render_slide()
+	else
+		vim.notify("Last slide", vim.log.levels.INFO)
+	end
+end
+
+function M.prev_slide()
+	if M.current_slide > 1 then
+		M.current_slide = M.current_slide - 1
+		M.render_slide()
+	else
+		vim.notify("First slide", vim.log.levels.INFO)
+	end
 end
 
 return M
