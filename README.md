@@ -19,7 +19,7 @@ Split your Markdown files into slides using `#` headings and navigate them direc
 Lazy 
 
 ```lua
-use {
+{ 
     "chirag-juneja/markdown.nvim",
     config = function()
         require("markdown").setup()
